@@ -4,17 +4,17 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>MyBank Camera</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#071725;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center;padding:16px}.screen{width:min(100%,520px);text-align:center}.title{font-size:20px;font-weight:700;margin:0 0 14px}.preview{position:relative;width:100%;aspect-ratio:3/4;max-height:72vh;overflow:hidden;border-radius:22px;background:#10283d;display:grid;place-items:center}.preview video{width:100%;height:100%;object-fit:cover}.shade{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.26));pointer-events:none}.frame{width:min(70vw,300px);aspect-ratio:1;border:3px solid #62c7ff;border-radius:24px;box-shadow:0 0 0 999px rgba(0,0,0,.12),0 0 24px #168bfa66;display:grid;place-items:center}.count{font-size:76px;font-weight:800;text-shadow:0 2px 14px #000}.hint{font-size:15px;margin:16px auto 0;line-height:1.6;color:#d9e9f6}.error{background:#fff;color:#24425d;padding:24px;border-radius:18px;line-height:1.65}.error button{border:0;border-radius:12px;background:#168bfa;color:#fff;font-weight:700;padding:13px 20px;margin-top:12px;font-size:16px}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#071725;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center;padding:16px}.screen{width:min(100%,520px);text-align:center}.title{font-size:20px;font-weight:700;margin:0 0 14px}.preview{position:relative;width:100%;aspect-ratio:3/4;max-height:72vh;overflow:hidden;border-radius:22px;background:#10283d;display:grid;place-items:center}.preview video{width:100%;height:100%;object-fit:cover}.shade{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.26));pointer-events:none}.frame{width:min(70vw,300px);aspect-ratio:1;border:3px solid #62c7ff;border-radius:24px;box-shadow:0 0 0 999px rgba(0,0,0,.12),0 0 24px #168bfa66;display:grid;place-items:center}.hint{font-size:15px;margin:16px auto 0;line-height:1.6;color:#d9e9f6}.error{background:#fff;color:#24425d;padding:24px;border-radius:18px;line-height:1.65}.error button{border:0;border-radius:12px;background:#168bfa;color:#fff;font-weight:700;padding:13px 20px;margin-top:12px;font-size:16px}
 </style>
 </head>
 <body>
 <div class="screen">
-  <h1 class="title">MyBank · กำลังเปิดกล้องจริง</h1>
+  <h1 class="title">MyBank · กำลังสแกน QR code</h1>
   <div class="preview" id="preview">
     <video id="camera" autoplay muted playsinline></video>
-    <div class="shade"><div class="frame"><div class="count" id="count">6</div></div></div>
+    <div class="shade"><div class="frame" role="img" aria-label="กรอบสแกน QR code"></div></div>
   </div>
-  <p class="hint" id="hint">กรุณาอนุญาตการใช้กล้อง ระบบจะเปิดหน้าโอนเงินอัตโนมัติเมื่อกล้องทำงานครบ 6 วินาที</p>
+  <p class="hint" id="hint">กรุณาวาง QR code ให้อยู่ในกรอบสี่เหลี่ยม</p>
 </div>
 <script>
 (function(){
@@ -22,11 +22,10 @@
   const params=new URLSearchParams(location.search);
   const nonce=params.get('nonce')||'';
   const video=document.getElementById('camera');
-  const countEl=document.getElementById('count');
   const hint=document.getElementById('hint');
-  let stream=null, interval=null, finished=false;
-  function stop(){if(interval){clearInterval(interval);interval=null}if(stream){stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}});stream=null}try{video.pause();video.srcObject=null}catch(e){}}
-  function notify(status,message){if(finished)return;finished=true;stop();try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'MYBANK_CAMERA_BRIDGE',nonce,status,message},'*')}}catch(e){}if(status==='success'){hint.textContent='ครบ 6 วินาทีแล้ว กำลังกลับไป MyBank';countEl.textContent='✓';setTimeout(()=>{try{window.close()}catch(e){}},250)}else{showError(message||'ไม่สามารถเปิดกล้องได้') ;}}
+  let stream=null, timer=null, finished=false;
+  function stop(){if(timer){clearTimeout(timer);timer=null}if(stream){stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}});stream=null}try{video.pause();video.srcObject=null}catch(e){}}
+  function notify(status,message){if(finished)return;finished=true;stop();try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'MYBANK_CAMERA_BRIDGE',nonce,status,message},'*')}}catch(e){}if(status==='success'){hint.textContent='สแกนเสร็จแล้ว กำลังกลับไป MyBank';setTimeout(()=>{try{window.close()}catch(e){}},250)}else{showError(message||'ไม่สามารถเปิดกล้องได้')}}
   function showError(message){stop();const box=document.getElementById('preview');box.innerHTML='<div class="error"><strong>ไม่สามารถเปิดกล้องได้</strong><br>'+String(message).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'<br><button type="button" id="returnBtn">กลับไป MyBank</button></div>';document.getElementById('returnBtn').onclick=()=>{try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'MYBANK_CAMERA_BRIDGE',nonce,status:'error',message},'*')}catch(e){}try{window.close()}catch(e){}};hint.textContent='ตรวจสอบสิทธิ์กล้องและลองใหม่อีกครั้ง'}
   async function start(){
     if(!nonce){showError('ลิงก์เปิดกล้องไม่ถูกต้อง กรุณากลับไปเริ่มจากปุ่มถ่ายรูป QR ใน MyBank');return}
@@ -35,8 +34,8 @@
       stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
       video.srcObject=stream;
       await video.play();
-      let remaining=6;countEl.textContent=String(remaining);
-      interval=setInterval(()=>{remaining--;countEl.textContent=String(Math.max(remaining,0));if(remaining<=0)notify('success','')},1000);
+      // Keep the real camera open for six seconds, without displaying a countdown.
+      timer=setTimeout(()=>notify('success',''),6000);
     }catch(err){let message='กรุณาอนุญาตสิทธิ์ Camera แล้วลองใหม่';if(err&&err.name==='NotFoundError')message='ไม่พบกล้องในอุปกรณ์';else if(err&&err.name==='NotReadableError')message='กล้องกำลังถูกใช้งานโดยแอปอื่น';else if(err&&err.name==='NotAllowedError')message='คุณยังไม่ได้อนุญาตใช้กล้องสำหรับเว็บไซต์นี้';showError(message)}
   }
   window.addEventListener('pagehide',stop,{once:true});
